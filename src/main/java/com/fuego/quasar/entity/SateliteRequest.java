@@ -11,4 +11,6 @@ public class SateliteRequest implements Serializable {
     private String name;
     private Double distance;
     private String[] message;
+
+
 }

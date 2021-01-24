@@ -7,4 +7,5 @@ import java.util.List;
 @Component
 public interface DecodeMessageService {
     String getMessage(List<String[]> messages) throws Exception;
+    String getMessage() throws Exception;
 }

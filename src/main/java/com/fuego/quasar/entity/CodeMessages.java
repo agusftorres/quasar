@@ -7,19 +7,15 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import java.io.Serializable;
 
-@Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Data
+@Builder
 @Entity
-public class Satelite implements Serializable {
-
+public class CodeMessages {
     @Id
     private String id;
-    private String name;
-    private Double x;
-    private Double y;
-    private String state;
+    private String message;
+
 }

@@ -7,19 +7,16 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import java.io.Serializable;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-public class Information implements Serializable {
+public class Position {
 
     @Id
     private String id;
-    @ManyToOne
-    private Position position;
-    private String message;
+    private Double x;
+    private Double y;
 }

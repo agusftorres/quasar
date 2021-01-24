@@ -1,7 +1,7 @@
 package com.fuego.quasar.controller.model;
 
 import com.fuego.quasar.entity.Information;
-import com.fuego.quasar.entity.PositionResponse;
+import com.fuego.quasar.entity.Position;
 import com.fuego.quasar.entity.SateliteRequest;
 import com.fuego.quasar.service.DecodeMessageService;
 import com.fuego.quasar.service.LocationService;
@@ -28,10 +28,10 @@ public class InformationLevelTwoController {
     public Information getInformation(@RequestBody List<SateliteRequest> request) throws Exception {
 
         List<String[]> messages = request.stream().map(SateliteRequest::getMessage).collect(Collectors.toList());
-        PositionResponse position = locationService.getLocation(request);
+        Position position = locationService.getLocation(request);
 
         return Information.builder()
-                .positionResponse(position)
+                .position(position)
                 .message(decodeMessageService.getMessage(messages))
                 .build();
     }
