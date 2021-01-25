@@ -5,16 +5,18 @@ import com.fuego.quasar.entity.LinearEquation;
 import com.fuego.quasar.entity.Position;
 import com.fuego.quasar.entity.QuadraticEquation;
 import com.fuego.quasar.entity.Satellite;
-import com.fuego.quasar.entity.SateliteRequest;
+import com.fuego.quasar.entity.SatelliteRequest;
+import com.fuego.quasar.exceptions.InactiveSatellite;
+import com.fuego.quasar.exceptions.NotFoundPosition;
 import com.fuego.quasar.repository.EquationXYRepository;
-import com.fuego.quasar.repository.SateliteRepository;
+import com.fuego.quasar.repository.SatelliteRepository;
 import com.fuego.quasar.service.EquationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import javax.swing.text.html.Option;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Optional;
@@ -24,84 +26,77 @@ import java.util.Optional;
 public class EquationImpl implements EquationService {
 
     @Autowired
-    @Qualifier("sateliteRepository")
-    SateliteRepository sateliteRepository;
+    @Qualifier("satelliteRepository")
+    SatelliteRepository satelliteRepository;
 
     @Autowired
     @Qualifier("equationXYRepository")
     EquationXYRepository equationXYRepository;
 
     @Override
-    public void buildEquations(SateliteRequest request) {
+    public void buildEquations(SatelliteRequest request) throws InactiveSatellite {
 
-        List<Satellite> satellites = sateliteRepository.findAll();
-        List<EquationXY> xies = equationXYRepository.findAll();
+        try {
+            List<Satellite> satellites = satelliteRepository.findAll();
+            List<EquationXY> xies = equationXYRepository.findAll();
 
-        Satellite satelite;
+            Satellite satellite;
+            satellite = satellites.stream().filter(item -> item.getName().equals(request.getName().toUpperCase())).findAny().get();
 
-        //TODO: try catch
-//        if (satellites.isEmpty()) {
-//            throw new Exception("No hay satelites en servicio");
-//        }
-        satelite = satellites.stream().filter(satellite -> satellite.getName().equals(request.getName().toUpperCase())).findAny().get();
+            if (satellite.getState().equals("ACTIVE")) {
+                /*
+                 * ||(x,y)-(-5,-2)||
+                 * ||(x+5,y+2)||
+                 * pow(x+5,2) + pow(y+2,2)
+                 *
+                 * */
+                QuadraticEquation quadraticX = squareOfBinomialWithParams(1.0, -1 * (satellite.getX() / 100));
+                QuadraticEquation quadraticY = squareOfBinomialWithParams(1.0, -1 * (satellite.getY() / 100));
+                EquationXY equation;
 
-        if (satelite.getState().equals("ACTIVE")) {
+                if (xies.isEmpty()) {
 
-            /*
-             * ||(x,y)-(-500,-200)||
-             * ||(x+500,y+200)||
-             * pow(x+500,2) + pow(y+200,2)
-             *
-             * */
-            QuadraticEquation quadraticX = squareOfBinomialWithParams(1.0, -1 * satelite.getX());
-            QuadraticEquation quadraticY = squareOfBinomialWithParams(1.0, -1 * satelite.getY());
-            EquationXY equation;
-
-            if (xies.isEmpty()) {
-
-                equation = EquationXY.builder()
-                        .name(satelite.getName())
-                        .quadraticTermX(quadraticX.getQuadraticTerm())
-                        .quadraticTermY(quadraticY.getQuadraticTerm())
-                        .linearTermX(quadraticX.getLinearTerm())
-                        .linearTermY(quadraticY.getLinearTerm())
-                        .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
-                        .var(Math.pow(request.getDistance(), 2))
-                        .build();
-            } else {
-                Optional<EquationXY> equationXY = xies.stream().filter(xy -> xy.getName().equals(request.getName().toUpperCase())).findAny();
-
-                if(!equationXY.isEmpty()) {
                     equation = EquationXY.builder()
-                            .id(equationXY.get().getId())
-                            .name(equationXY.get().getName())
+                            .name(satellite.getName())
                             .quadraticTermX(quadraticX.getQuadraticTerm())
                             .quadraticTermY(quadraticY.getQuadraticTerm())
                             .linearTermX(quadraticX.getLinearTerm())
                             .linearTermY(quadraticY.getLinearTerm())
                             .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
-                            .var(Math.pow(request.getDistance(), 2))
+                            .var(Math.pow(request.getDistance() / 100, 2))
                             .build();
-                }else{
-                    equation = EquationXY.builder()
-                            .name(satelite.getName())
-                            .quadraticTermX(quadraticX.getQuadraticTerm())
-                            .quadraticTermY(quadraticY.getQuadraticTerm())
-                            .linearTermX(quadraticX.getLinearTerm())
-                            .linearTermY(quadraticY.getLinearTerm())
-                            .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
-                            .var(Math.pow(request.getDistance(), 2))
-                            .build();
+                } else {
+                    Optional<EquationXY> equationXY = xies.stream().filter(xy -> xy.getName().equals(request.getName().toUpperCase())).findAny();
+
+                    if (equationXY.isPresent()) {
+                        equation = EquationXY.builder()
+                                .id(equationXY.get().getId())
+                                .name(equationXY.get().getName())
+                                .quadraticTermX(quadraticX.getQuadraticTerm())
+                                .quadraticTermY(quadraticY.getQuadraticTerm())
+                                .linearTermX(quadraticX.getLinearTerm())
+                                .linearTermY(quadraticY.getLinearTerm())
+                                .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
+                                .var(Math.pow(request.getDistance() / 100, 2))
+                                .build();
+                    } else {
+                        equation = EquationXY.builder()
+                                .name(satellite.getName())
+                                .quadraticTermX(quadraticX.getQuadraticTerm())
+                                .quadraticTermY(quadraticY.getQuadraticTerm())
+                                .linearTermX(quadraticX.getLinearTerm())
+                                .linearTermY(quadraticY.getLinearTerm())
+                                .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
+                                .var(Math.pow(request.getDistance() / 100, 2))
+                                .build();
+                    }
                 }
+                equationXYRepository.save(equation);
             }
-
-            equationXYRepository.save(equation);
+        }catch (Exception e){
+            throw new InactiveSatellite(
+                   "El satelite no esta en servicio",  HttpStatus.NOT_FOUND);
         }
-//        } else {
-//            throw new ResponseStatusException(
-//                    HttpStatus.NOT_FOUND, "El satelite no esta en servicio");
-//
-//        }
     }
 
     @Override
@@ -203,35 +198,44 @@ public class EquationImpl implements EquationService {
     }
 
     @Override
-    public Position validatePosition(List<Position> positionRespons, EquationXY equation) throws Exception {
-        DecimalFormat df = new DecimalFormat("###.##");
+    public Position validatePosition(List<Position> positionResponse, EquationXY equation) throws Exception {
+        try{
+            DecimalFormat df = new DecimalFormat("###.##");
 
-        Double x1 = positionRespons.get(0).getX();
-        Double y1 = positionRespons.get(0).getY();
+            Double x1 = (double) Math.round(positionResponse.get(0).getX());
+            Double y1 = (double) Math.round(positionResponse.get(0).getY());
 
-        Double x2 = positionRespons.get(1).getX();
-        Double y2 = positionRespons.get(1).getY();
+            Double x2 = (double) Math.round(positionResponse.get(1).getX());
+            Double y2 =(double) Math.round(positionResponse.get(1).getY());
 
-        double firstPosition =
-                Math.pow(equation.getQuadraticTermX() * x1, 2)
-                        + Math.pow(equation.getQuadraticTermY() * y1, 2)
-                        + (equation.getLinearTermX() * x1)
-                        + (equation.getLinearTermY() * y1)
-                        + equation.getIndependentTerm();
+            double firstPosition =
+                    Math.pow(equation.getQuadraticTermX() * x1, 2)
+                            + Math.pow(equation.getQuadraticTermY() * y1, 2)
+                            + (equation.getLinearTermX() * x1)
+                            + (equation.getLinearTermY() * y1)
+                            + equation.getIndependentTerm();
 
-        double secondPosition =
-                Math.pow(equation.getQuadraticTermX() * x2, 2)
-                        + Math.pow(equation.getQuadraticTermY() * y2, 2)
-                        + (equation.getLinearTermX() * x2)
-                        + (equation.getLinearTermY() * y2)
-                        + equation.getIndependentTerm();
+            double secondPosition =
+                    Math.pow(equation.getQuadraticTermX() * x2, 2)
+                            + Math.pow(equation.getQuadraticTermY() * y2, 2)
+                            + (equation.getLinearTermX() * x2)
+                            + (equation.getLinearTermY() * y2)
+                            + equation.getIndependentTerm();
 
-        if(df.format(firstPosition).equals(df.format(equation.getVar()))){
-            return positionRespons.get(0);
-        } else if(df.format(secondPosition).equals(df.format(equation.getVar()))){
-            return positionRespons.get(1);
+            if(df.format(firstPosition).equals(df.format(Math.round(equation.getVar())))){
+                return  Position.builder()
+                        .x( (double) Math.round(positionResponse.get(0).getX()) * 100)
+                        .y( (double) Math.round(positionResponse.get(0).getY()) * 100)
+                        .build();
+            } else if(df.format(secondPosition).equals(df.format(Math.round(equation.getVar())))){
+                return Position.builder()
+                        .x( (double) Math.round(positionResponse.get(1).getX()) * 100)
+                        .y( (double) Math.round(positionResponse.get(1).getY()) * 100)
+                        .build();
+            }
+            throw new Exception();
+        }catch (Exception e){
+            throw new NotFoundPosition("No es posible hallar la posición", HttpStatus.FORBIDDEN);
         }
-
-        throw new Exception("No es posible hallar la posición");
     }
 }

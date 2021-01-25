@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -29,7 +30,7 @@ public class Satellite implements Serializable {
     private Double x;
     private Double y;
     private String state;
-    @OneToMany
+    @OneToMany(cascade = CascadeType.ALL)
     @Column(name = "id_message")
     private List<CodeMessages> messages;
 
@@ -37,7 +38,7 @@ public class Satellite implements Serializable {
         String[] messages = new String[list.size()];
         list.forEach(
                 codeMessages ->
-                        messages[Integer.parseInt(codeMessages.getId())] = codeMessages.getMessage()
+                        messages[list.indexOf(codeMessages)] = codeMessages.getMessage()
         );
         return messages;
     }

@@ -2,12 +2,14 @@ package com.fuego.quasar.controller.model;
 
 import com.fuego.quasar.entity.Information;
 import com.fuego.quasar.entity.Position;
-import com.fuego.quasar.entity.SateliteRequest;
+import com.fuego.quasar.entity.SatelliteRequest;
 import com.fuego.quasar.entity.Satellite;
 import com.fuego.quasar.service.DecodeMessageService;
 import com.fuego.quasar.service.LocationService;
 import com.fuego.quasar.service.SatelliteService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,19 +32,19 @@ public class InformationLevelTwoController {
     private SatelliteService satelliteService;
 
     @PostMapping(path = "/l2/topsecret/")
-    public Information getInformation(@RequestBody List<SateliteRequest> request) throws Exception {
+    public ResponseEntity<Information> getInformation(@RequestBody List<SatelliteRequest> request) throws Exception {
 
-        List<String[]> messages = request.stream().map(SateliteRequest::getMessage).collect(Collectors.toList());
+        List<String[]> messages = request.stream().map(SatelliteRequest::getMessage).collect(Collectors.toList());
         Position position = locationService.getLocation(request);
 
-        return Information.builder()
+        return new ResponseEntity<>(Information.builder()
                 .position(position)
                 .message(decodeMessageService.getMessage(messages))
-                .build();
+                .build(), HttpStatus.OK);
     }
 
     @PostMapping(path = "/l2/satellites")
-    public List<Satellite> satellitesState(){
+    public ResponseEntity<List<Satellite>> satellitesState(){
 
         List<Satellite> list = satelliteService.satellitesInService();
         if(list.isEmpty()){
@@ -77,10 +79,6 @@ public class InformationLevelTwoController {
             list.add(sato);
             list.add(skywalker);
         }
-
-        return list;
+        return new ResponseEntity<>(list, HttpStatus.ACCEPTED);
     }
-
-
-
 }

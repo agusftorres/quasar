@@ -4,14 +4,16 @@ import com.fuego.quasar.entity.EquationXY;
 import com.fuego.quasar.entity.LinearEquation;
 import com.fuego.quasar.entity.Position;
 import com.fuego.quasar.entity.QuadraticEquation;
-import com.fuego.quasar.entity.SateliteRequest;
+import com.fuego.quasar.entity.SatelliteRequest;
+import com.fuego.quasar.exceptions.InsufficientInformation;
 import com.fuego.quasar.repository.EquationXYRepository;
-import com.fuego.quasar.repository.SateliteRepository;
+import com.fuego.quasar.repository.SatelliteRepository;
 import com.fuego.quasar.service.EquationService;
 import com.fuego.quasar.service.LocationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,8 +23,8 @@ import java.util.List;
 public class LocationImpl implements LocationService {
 
     @Autowired
-    @Qualifier("sateliteRepository")
-    SateliteRepository sateliteRepository;
+    @Qualifier("satelliteRepository")
+    SatelliteRepository satelliteRepository;
 
     @Autowired
     @Qualifier("equationXYRepository")
@@ -32,9 +34,9 @@ public class LocationImpl implements LocationService {
     EquationService equationService;
 
     @Override
-    public Position getLocation(List<SateliteRequest> satellites) throws Exception {
+    public Position getLocation(List<SatelliteRequest> satellites) throws Exception {
         log.info("Valido que el request no este vacío");
-        if(!satellites.isEmpty()){
+        try{
             log.info("Construyo las ecuaciones con X e Y como variables");
             satellites.forEach(satellite -> {
                 try {
@@ -43,11 +45,10 @@ public class LocationImpl implements LocationService {
                     e.printStackTrace();
                 }
             });
-        } else{
-            throw new Exception("Los datos no son suficientes para localizar al emisor");
+            return findPosition();
+        }catch (Exception w){
+            throw new InsufficientInformation("Los datos no son suficientes para localizar al emisor", HttpStatus.FORBIDDEN);
         }
-
-        return findPosition();
     }
 
     @Override
@@ -57,93 +58,27 @@ public class LocationImpl implements LocationService {
 
     private Position findPosition() throws Exception {
 
-        List<EquationXY> xies = equationXYRepository.findAll();
+        try{
+            List<EquationXY> xies = equationXYRepository.findAll();
+            EquationXY equationK = xies.stream().filter(xy -> xy.getName().equals("KENOBI")).findAny().get();
+            EquationXY equationS = xies.stream().filter(xy -> xy.getName().equals("SKYWALKER")).findAny().get();
+            EquationXY equationSa = xies.stream().filter(xy -> xy.getName().equals("SATO")).findAny().get();
 
-        EquationXY equationK = xies.stream().filter(xy -> xy.getName().equals("KENOBI")).findAny().get();
-        EquationXY equationS = xies.stream().filter(xy -> xy.getName().equals("SKYWALKER")).findAny().get();
-        EquationXY equationSa = xies.stream().filter(xy -> xy.getName().equals("SATO")).findAny().get();
+            log.info("Despejo X de la ecuación Kenobi {}", equationK);
+            LinearEquation linearEquation = equationService.reduceAndClearX(equationK, equationS);
+            log.info("Reemplazo X = {} en {}", linearEquation, equationK);
+            QuadraticEquation quadraticEquation = equationService.replaceX(linearEquation, equationK);
+            log.info("Se resuelve la cuadratica: {}", quadraticEquation);
+            List<Double> possibleValue = equationService.solveQuadratic(quadraticEquation);
+            log.info("Se reemplazan x1 y x2: {}, en {}", possibleValue, linearEquation);
+            List<Position> positionList = equationService.validateValues(possibleValue, linearEquation);
+            log.info("Se prueban los puntos obtenidos {}", positionList);
+            Position position = equationService.validatePosition(positionList, equationSa);
 
-        log.info("Despejo X de la ecuación Kenobi {}", equationK);
-        LinearEquation linearEquation = equationService.reduceAndClearX(equationK, equationS);
-        log.info("Reemplazo X = {} en {}", linearEquation, equationK);
-        QuadraticEquation quadraticEquation = equationService.replaceX(linearEquation, equationK);
-        log.info("Se resuelve la cuadratica: {}", quadraticEquation);
-        List<Double> possibleValue = equationService.solveQuadratic(quadraticEquation);
-        log.info("Se reemplazan x1 y x2: {}, en {}", possibleValue, linearEquation);
-        List<Position> positionList = equationService.validateValues(possibleValue, linearEquation);
-        log.info("Se prueban los puntos obtenidos {}", positionList);
-        Position position = equationService.validatePosition(positionList, equationSa);
-
-        log.info("La posicion del emisor del mensaje es: {}", position);
-        return position;
+            log.info("La posicion del emisor del mensaje es: {}", position);
+            return position;
+        }catch (Exception e){
+            throw new InsufficientInformation("La información disponible no es suficiente para localizar al emisor", HttpStatus.FORBIDDEN);
+        }
     }
-
-
-//    public List<Satelite> getSatelites(){
-//        PositionResponse kenobi = PositionResponse.builder()
-//                .x(-500.00)
-//                .y(-200.00)
-//                .build();
-//        PositionResponse skywalker = PositionResponse.builder()
-//                .x(100.00)
-//                .y(-100.00)
-//                .build();
-//        PositionResponse sato = PositionResponse.builder()
-//                .x(500.00)
-//                .y(100.00)
-//                .build();
-//
-//        return List.of(
-//                Satelite.builder()
-//                        .id("1")
-//                        .name("KENOBI")
-//                        .position(kenobi)
-//                        .state(String.valueOf(SateliteState.ACTIVE))
-//                        .build(),
-//                Satelite.builder()
-//                        .id("2")
-//                        .name("SKYWALKER")
-//                        .position(skywalker)
-//                        .state(String.valueOf(SateliteState.ACTIVE))
-//                        .build(),
-//                Satelite.builder()
-//                        .id("3")
-//                        .name("SATO")
-//                        .position(sato)
-//                        .state(String.valueOf(SateliteState.ACTIVE))
-//                        .build()
-//        );
-//    }
-
-//    private List<EquationXY> getEcuations(){
-//       return List.of(
-//               EquationXY.builder()
-//                       .id("1")
-//                       .name("KENOBI")
-//                       .quadraticTermX(100.0)
-//                       .quadraticTermY(100.0)
-//                       .linearTermX(1000.0)
-//                       .linearTermY(400.0)
-//                       .independentTerm(290000.0)
-//                       .build(),
-//               EquationXY.builder()
-//                       .id("2")
-//                       .name("SKYWALKER")
-//                       .quadraticTermX(1.0)
-//                       .quadraticTermY(1.0)
-//                       .linearTermX(-200.0)
-//                       .linearTermY(200.0)
-//                       .independentTerm(20000.0)
-//                       .build(),
-//               EquationXY.builder()
-//                       .id("3")
-//                       .name("SATO")
-//                       .quadraticTermX(1.0)
-//                       .quadraticTermY(1.0)
-//                       .linearTermX(-1000.0)
-//                       .linearTermY(-200.0)
-//                       .independentTerm(260000.0)
-//                       .build()
-//       );
-//    }
 }
