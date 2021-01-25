@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -178,7 +179,12 @@ public class EquationImpl implements EquationService {
         Double x1 =  (- b + root) / (2 * a);
         Double x2 = (- b - root) / (2 * a);
 
-        return List.of(x1, x2);
+        List<Double> list = new ArrayList<>();
+        list.add(x1);
+        list.add(x2);
+
+        return list;
+       // return List.of(x1, x2);
     }
 
     @Override
@@ -194,7 +200,11 @@ public class EquationImpl implements EquationService {
                         + equation.getIndependentTerm())
                 .build();
 
-        return List.of(dot1, dot2);
+        List<Position> list = new ArrayList<>();
+        list.add(dot1);
+        list.add(dot2);
+        return list;
+        //return List.of(dot1, dot2);
     }
 
     @Override
