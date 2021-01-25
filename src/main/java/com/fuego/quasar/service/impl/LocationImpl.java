@@ -57,9 +57,11 @@ public class LocationImpl implements LocationService {
 
     private Position findPosition() throws Exception {
 
-        EquationXY equationK = equationXYRepository.findByName("KENOBI");
-        EquationXY equationS = equationXYRepository.findByName("SKYWALKER");
-        EquationXY equationSa = equationXYRepository.findByName("SATO");
+        List<EquationXY> xies = equationXYRepository.findAll();
+
+        EquationXY equationK = xies.stream().filter(xy -> xy.getName().equals("KENOBI")).findAny().get();
+        EquationXY equationS = xies.stream().filter(xy -> xy.getName().equals("SKYWALKER")).findAny().get();
+        EquationXY equationSa = xies.stream().filter(xy -> xy.getName().equals("SATO")).findAny().get();
 
         log.info("Despejo X de la ecuación Kenobi {}", equationK);
         LinearEquation linearEquation = equationService.reduceAndClearX(equationK, equationS);

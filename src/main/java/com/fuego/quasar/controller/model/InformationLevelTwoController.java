@@ -3,8 +3,10 @@ package com.fuego.quasar.controller.model;
 import com.fuego.quasar.entity.Information;
 import com.fuego.quasar.entity.Position;
 import com.fuego.quasar.entity.SateliteRequest;
+import com.fuego.quasar.entity.Satellite;
 import com.fuego.quasar.service.DecodeMessageService;
 import com.fuego.quasar.service.LocationService;
+import com.fuego.quasar.service.SatelliteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,6 +26,9 @@ public class InformationLevelTwoController {
     @Autowired
     private DecodeMessageService decodeMessageService;
 
+    @Autowired
+    private SatelliteService satelliteService;
+
     @PostMapping(path = "/l2/topsecret/")
     public Information getInformation(@RequestBody List<SateliteRequest> request) throws Exception {
 
@@ -34,6 +39,46 @@ public class InformationLevelTwoController {
                 .position(position)
                 .message(decodeMessageService.getMessage(messages))
                 .build();
+    }
+
+    @PostMapping(path = "/l2/satellites")
+    public List<Satellite> satellitesState(){
+
+        List<Satellite> list = satelliteService.satellitesInService();
+        if(list.isEmpty()){
+
+            Satellite kenobi = Satellite.builder()
+                        .name("KENOBI")
+                        .x(-500.00)
+                        .y(-200.00)
+                        .state("ACTIVE")
+                        .build();
+
+            Satellite skywalker =  Satellite.builder()
+                        .id("2")
+                        .name("SKYWALKER")
+                        .x(100.00)
+                        .y(-100.00)
+                        .state("ACTIVE")
+                        .build();
+
+            Satellite sato =  Satellite.builder()
+                        .name("SATO")
+                        .x(500.00)
+                        .y(100.00)
+                        .state("ACTIVE")
+                        .build();
+
+            satelliteService.addSatellite(kenobi);
+            satelliteService.addSatellite(skywalker);
+            satelliteService.addSatellite(sato);
+
+            list.add(kenobi);
+            list.add(sato);
+            list.add(skywalker);
+        }
+
+        return list;
     }
 
 

@@ -12,11 +12,12 @@ import com.fuego.quasar.service.EquationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
+import javax.swing.text.html.Option;
+import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -33,27 +34,33 @@ public class EquationImpl implements EquationService {
     @Override
     public void buildEquations(SateliteRequest request) {
 
+        List<Satellite> satellites = sateliteRepository.findAll();
+        List<EquationXY> xies = equationXYRepository.findAll();
+
         Satellite satelite;
-        EquationXY equationXY;
 
         //TODO: try catch
-        satelite = sateliteRepository.findByName(request.getName());
-        equationXY = equationXYRepository.findByName(request.getName());
+//        if (satellites.isEmpty()) {
+//            throw new Exception("No hay satelites en servicio");
+//        }
+        satelite = satellites.stream().filter(satellite -> satellite.getName().equals(request.getName().toUpperCase())).findAny().get();
 
-        String ACTIVE = "ACTIVE";
-        if (satelite.getState().equals(ACTIVE)) {
+        if (satelite.getState().equals("ACTIVE")) {
+
             /*
-            * ||(x,y)-(-500,-200)||
-            * ||(x+500,y+200)||
-            * pow(x+500,2) + pow(y+200,2)
-            *
-            * */
+             * ||(x,y)-(-500,-200)||
+             * ||(x+500,y+200)||
+             * pow(x+500,2) + pow(y+200,2)
+             *
+             * */
             QuadraticEquation quadraticX = squareOfBinomialWithParams(1.0, -1 * satelite.getX());
             QuadraticEquation quadraticY = squareOfBinomialWithParams(1.0, -1 * satelite.getY());
+            EquationXY equation;
 
-            EquationXY equation = EquationXY.builder()
-                        .id(equationXY.getId())
-                        .name(equationXY.getName())
+            if (xies.isEmpty()) {
+
+                equation = EquationXY.builder()
+                        .name(satelite.getName())
                         .quadraticTermX(quadraticX.getQuadraticTerm())
                         .quadraticTermY(quadraticY.getQuadraticTerm())
                         .linearTermX(quadraticX.getLinearTerm())
@@ -61,11 +68,40 @@ public class EquationImpl implements EquationService {
                         .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
                         .var(Math.pow(request.getDistance(), 2))
                         .build();
+            } else {
+                Optional<EquationXY> equationXY = xies.stream().filter(xy -> xy.getName().equals(request.getName().toUpperCase())).findAny();
+
+                if(!equationXY.isEmpty()) {
+                    equation = EquationXY.builder()
+                            .id(equationXY.get().getId())
+                            .name(equationXY.get().getName())
+                            .quadraticTermX(quadraticX.getQuadraticTerm())
+                            .quadraticTermY(quadraticY.getQuadraticTerm())
+                            .linearTermX(quadraticX.getLinearTerm())
+                            .linearTermY(quadraticY.getLinearTerm())
+                            .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
+                            .var(Math.pow(request.getDistance(), 2))
+                            .build();
+                }else{
+                    equation = EquationXY.builder()
+                            .name(satelite.getName())
+                            .quadraticTermX(quadraticX.getQuadraticTerm())
+                            .quadraticTermY(quadraticY.getQuadraticTerm())
+                            .linearTermX(quadraticX.getLinearTerm())
+                            .linearTermY(quadraticY.getLinearTerm())
+                            .independentTerm(quadraticX.getIndependentTerm() + quadraticY.getIndependentTerm())
+                            .var(Math.pow(request.getDistance(), 2))
+                            .build();
+                }
+            }
 
             equationXYRepository.save(equation);
         }
-        throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,"El satelite no esta en servicio");
+//        } else {
+//            throw new ResponseStatusException(
+//                    HttpStatus.NOT_FOUND, "El satelite no esta en servicio");
+//
+//        }
     }
 
     @Override
@@ -117,13 +153,15 @@ public class EquationImpl implements EquationService {
         QuadraticEquation quadraticEquation = QuadraticEquation.builder()
                 .quadraticTerm(
                         equationXY.getQuadraticTermY()
-                                + (firstTermQ.getQuadraticTerm() / Math.pow(1200, 2)))
+                                + firstTermQ.getQuadraticTerm())
                 .linearTerm(
                         equationXY.getLinearTermY()
-                                + firstTermQ.getLinearTerm())
+                                + firstTermQ.getLinearTerm()
+                                + (equationXY.getLinearTermX() * linear.getLinearTerm()))
                 .independentTerm(
                         equationXY.getIndependentTerm()
-                                + (firstTermQ.getIndependentTerm() / Math.pow(1200,2))
+                                + firstTermQ.getIndependentTerm()
+                                + (equationXY.getLinearTermX() * linear.getIndependentTerm())
                                 - equationXY.getVar())
                 .var(0.00)
                 .build();
@@ -140,7 +178,7 @@ public class EquationImpl implements EquationService {
         Double a = equation.getQuadraticTerm();
         Double b = equation.getLinearTerm();
         Double c = equation.getIndependentTerm();
-        double root = Math.sqrt(Math.pow(b, 2) - (4 * a * c));
+        Double root = Math.sqrt(Math.pow(b, 2) - (4 * a * c));
 
         Double x1 =  (- b + root) / (2 * a);
         Double x2 = (- b - root) / (2 * a);
@@ -153,14 +191,12 @@ public class EquationImpl implements EquationService {
         Position dot1 = Position.builder()
                 .y(possiblesX.get(0))
                 .x((equation.getLinearTerm() * possiblesX.get(0))
-                        + equation.getLinearTerm()
-                        - equation.getVar())
+                        + equation.getIndependentTerm())
                 .build();
         Position dot2 = Position.builder()
                 .y(possiblesX.get(1))
                 .x((equation.getLinearTerm() * possiblesX.get(1))
-                        + equation.getLinearTerm()
-                        - equation.getVar())
+                        + equation.getIndependentTerm())
                 .build();
 
         return List.of(dot1, dot2);
@@ -168,11 +204,13 @@ public class EquationImpl implements EquationService {
 
     @Override
     public Position validatePosition(List<Position> positionRespons, EquationXY equation) throws Exception {
+        DecimalFormat df = new DecimalFormat("###.##");
+
         Double x1 = positionRespons.get(0).getX();
         Double y1 = positionRespons.get(0).getY();
 
         Double x2 = positionRespons.get(1).getX();
-        Double y2 = positionRespons.get(2).getY();
+        Double y2 = positionRespons.get(1).getY();
 
         double firstPosition =
                 Math.pow(equation.getQuadraticTermX() * x1, 2)
@@ -188,9 +226,9 @@ public class EquationImpl implements EquationService {
                         + (equation.getLinearTermY() * y2)
                         + equation.getIndependentTerm();
 
-        if(firstPosition == equation.getVar()){
+        if(df.format(firstPosition).equals(df.format(equation.getVar()))){
             return positionRespons.get(0);
-        } else if(secondPosition == equation.getVar()){
+        } else if(df.format(secondPosition).equals(df.format(equation.getVar()))){
             return positionRespons.get(1);
         }
 

@@ -7,6 +7,4 @@ import org.springframework.stereotype.Repository;
 
 @Repository("sateliteRepository")
 public interface SateliteRepository extends JpaRepository<Satellite, String> {
-    @Query(value = "SELECT u FROM Satelite u WHERE u.name = ?1",nativeQuery = true)
-    Satellite findByName(String name);
 }
