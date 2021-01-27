@@ -1,7 +1,6 @@
 package com.fuego.quasar.service.impl;
 
 import com.fuego.quasar.entity.Information;
-import com.fuego.quasar.entity.Position;
 import com.fuego.quasar.entity.SatelliteRequest;
 import com.fuego.quasar.service.DecodeMessageService;
 import com.fuego.quasar.service.EquationService;
